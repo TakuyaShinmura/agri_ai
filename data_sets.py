@@ -12,8 +12,8 @@ import random
 
 VALIDATION_START = 10
 VALIDATTION_END = 15
-NUM_INPUT = 2
-NUM_PREDICT = 2
+NUM_INPUT = 24
+NUM_PREDICT = 24
 
 class DataSets(object):
 
@@ -32,11 +32,11 @@ class DataSets(object):
             header = next(reader)
             num_line = 0
             for row in reader:
-                float_row = row[4:-1]
+                float_row = row[5:]
                 float_row = [float(elem) for elem in float_row]
                 all_data.append(float_row)
 
-                if row[12] == str(1):
+                if row[4] == str(1):
                     if int(row[2]) >= VALIDATION_START and int(row[2]) <= VALIDATTION_END:
                         validation_index.append(num_line)
                     else:
@@ -74,7 +74,7 @@ class DataSets(object):
                 time_step.append(self.stand_data[index+NUM_INPUT+i])
             correct_batch.append(time_step)
 
-        return (input_batch, correct_batch)            
+        return (np.array(input_batch), np.array(correct_batch))            
 
     '''
     @param batch_size: Num of batch size.
