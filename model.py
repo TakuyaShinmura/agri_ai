@@ -47,7 +47,7 @@ def _prediction_decoder(decoder_inputs, initial_state, cell, num_units, feed_pre
 def inference(encoder_inputs, decoder_inputs, num_units, feed_previous=False):
 
     cell = tf.nn.rnn_cell.BasicLSTMCell(num_units)
-    cell = tf.nn.rnn_cell.MultiRNNCell(cells=[cell]*3)
+    cell = tf.nn.rnn_cell.MultiRNNCell(cells=[cell]*5)
     _, state = tf.nn.rnn(cell=cell, inputs=encoder_inputs, dtype=tf.float32)
 
     outputs, state = _prediction_decoder(decoder_inputs, state,cell, num_units=num_units, feed_previous=feed_previous)
@@ -59,11 +59,35 @@ def loss(outputs, corrects):
     for output, correct in zip(outputs, corrects):
         loss_array.append(tf.reduce_mean(tf.abs(output-correct)))
 
+    loss = tf.add_n(loss_array)
+    tf.summary.scalar("loss", loss)
 
-    return tf.add_n(loss_array)
+    return loss
 
 def train_step(loss, learning_rate):
     return tf.train.RMSPropOptimizer(learning_rate).minimize(loss)
 
-def accuracy(outputs, corrects, stddev, mean):
-    pass
+def average_error(outputs, corrects, stddev, mean):
+
+    error = []
+    counter = 0
+    for output, correct in zip(outputs, corrects):
+        true_out = output * stddev + mean
+        true_correct = correct * stddev + mean
+
+        accuracy = tf.abs(true_correct - true_out)
+        accuracy = tf.reduce_mean(accuracy, axis=0)
+
+        error.append(accuracy)
+        counter +=1
+
+    each_error = tf.add_n(error)/counter
+
+    tf.summary.scalar("HD Error", each_error[0])
+    tf.summary.scalar("TP Error", each_error[1])
+    tf.summary.scalar("HM Error", each_error[2])
+    tf.summary.scalar("SM Error", each_error[3])
+    tf.summary.scalar("CO Error", each_error[4])
+    tf.summary.scalar("SR Error", each_error[5])
+
+    return each_error
