@@ -8,9 +8,8 @@ import math
 from six.moves import xrange
 
 
-def loop_function(prev):
+def loop_function(prev, num_units):
 
-    num_units = 128
     with tf.variable_scope("output"):
         weight_init = tf.truncated_normal_initializer(stddev=1.0/math.sqrt(num_units))
         weight = tf.get_variable('output_weight', [num_units, 6], initializer = weight_init)
@@ -36,7 +35,7 @@ def _prediction_decoder(decoder_inputs, initial_state, cell, num_units, feed_pre
                     inp = prev
 
             out, state = cell(inp, state)
-            pred = loop_function(out)
+            pred = loop_function(out, num_units)
             outputs.append(pred)
             prev = pred
     return outputs, state
