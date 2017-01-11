@@ -15,7 +15,7 @@ import numpy as np
 tf.app.flags.DEFINE_string("train_dir","data/","Work directory.")
 tf.app.flags.DEFINE_string("log_dir","data/logs/","Log directory.")
 tf.app.flags.DEFINE_string("model_dir", "data/ckpt/", "Model directory.")
-tf.app.flags.DEFINE_integer("num_units",64, "State size.")
+tf.app.flags.DEFINE_integer("num_units",128, "State size.")
 tf.app.flags.DEFINE_integer("train_step", 1000, "Step size to train.")
 tf.app.flags.DEFINE_integer("batch_size", 32, "Batch size.")
 tf.app.flags.DEFINE_float("learning_rate", 0.01, "Learning rate.")
@@ -24,12 +24,13 @@ tf.app.flags.DEFINE_float("learning_rate", 0.01, "Learning rate.")
 
 FLAGS = tf.app.flags.FLAGS
 DATA_SETS_FILE = 'data.csv'
+TEST_SETS_FILE = 'test_data.csv'
 NUM_INPUT = 6
 TIME_STEP = 24
 
 
 def main(_):
-    data_sets = DataSets(FLAGS.train_dir+DATA_SETS_FILE)
+    data_sets = DataSets(FLAGS.train_dir+DATA_SETS_FILE, FLAGS.train_dir+TEST_SETS_FILE)
 
     stdev = data_sets.std
     mean = data_sets.average
@@ -73,23 +74,31 @@ def main(_):
     	file_writer = tf.summary.FileWriter(FLAGS.log_dir, sess.graph)
 
         valid_feed = {}
+        test_feed = {}
 
         v_inputs, v_corrects = data_sets.validation_data
+        t_inputs, t_corrects = data_sets.test_data
         valid_size = v_inputs.shape[0]
+        test_size = t_inputs.shape[0]
         v_inputs = np.transpose(v_inputs,(1,0,2))
+        t_inputs = np.transpose(t_inputs,(1,0,2))
         v_corrects = np.transpose(v_corrects,(1,0,2))
+        t_corrects = np.transpose(t_corrects,(1,0,2))
 
         for i in xrange(TIME_STEP):
             valid_feed[tf.get_collection("encoder_input")[i]] = v_inputs[i]
+            test_feed[tf.get_collection("encoder_input")[i]] = t_inputs[i]
 
 
         for i in xrange(TIME_STEP):
             valid_feed[tf.get_collection("correct")[i]] = v_corrects[i]
+            test_feed[tf.get_collection("correct")[i]] = t_corrects[i]
             if i != 0:
                 valid_feed[tf.get_collection("decoder_input")[i]] = v_corrects[i-1]
-
+                test_feed[tf.get_collection("decoder_input")[i]] = t_corrects[i-1]
             else:
                 valid_feed[tf.get_collection("decoder_input")[i]] = np.zeros((valid_size, NUM_INPUT))
+                test_feed[tf.get_collection("decoder_input")[i]] = np.zeros((test_size, NUM_INPUT))
 
 		saver = tf.train.Saver()
         ckpt = tf.train.get_checkpoint_state(FLAGS.model_dir)
@@ -125,6 +134,9 @@ def main(_):
                 file_writer.add_summary(summary, step)
                 print("step%d loss=%f average error: HD=%f TP=%f HM=%f SM=%f CO=%f SR=%f"%(step, loss_val, error[0], error[1], error[2], error[3], error[4] ,error[5]))
                 saver.save(sess, FLAGS.model_dir+"model.ckpt")
+
+        test_error, test_loss = sess.run([average_error, loss], feed_dict=test_feed)
+        print("test loss=%f average error: HD=%f TP=%f HM=%f SM=%f CO=%f SR=%f"%(test_loss, test_error[0], test_error[1], test_error[2], test_error[3], test_error[4] ,test_error[5]))
 
 if __name__ == "__main__":
     tf.app.run()
