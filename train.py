@@ -6,6 +6,7 @@ from __future__ import print_function
 
 from data_sets import DataSets
 from six.moves import xrange
+import time
 import tensorflow as tf
 import random
 import model
@@ -27,6 +28,7 @@ DATA_SETS_FILE = 'data.csv'
 TEST_SETS_FILE = 'test_data.csv'
 NUM_INPUT = 6
 TIME_STEP = 24
+LOG_STEP = 100
 
 
 def main(_):
@@ -40,7 +42,7 @@ def main(_):
     print(data_sets.max)
     print(data_sets.min)
 
-
+    print("create model...")
     encoder_inputs = []
     decoder_inputs = []
     corrects = []
@@ -64,6 +66,8 @@ def main(_):
     train_step = model.train_step(loss, FLAGS.learning_rate)
 
     average_error = model.average_error(outputs, corrects, stdev, mean)
+
+    maximum_error = model.maximum_error(outputs, corrects, stdev, mean)
 
     init_op = tf.global_variables_initializer()
 
@@ -109,7 +113,11 @@ def main(_):
         else:
         	sess.run(init_op)
 
+
+        print("start training.")
         for step in xrange(FLAGS.train_step):
+
+            start_time = time.time()
 
             train_feed = {}
             t_inputs, t_corrects = data_sets.get_next_batch(FLAGS.batch_size)
@@ -126,17 +134,22 @@ def main(_):
                 else:
                     train_feed[tf.get_collection("decoder_input")[i]] = np.zeros((FLAGS.batch_size, NUM_INPUT))
 
-            print("step%d"%step)
             sess.run(train_step, feed_dict=train_feed)
 
-            if step > 0  and step % 100 == 0:
-                summary, error, loss_val = sess.run([summary_op, average_error, loss], feed_dict=valid_feed)
-                file_writer.add_summary(summary, step)
-                print("step%d loss=%f average error: HD=%f TP=%f HM=%f SM=%f CO=%f SR=%f"%(step, loss_val, error[0], error[1], error[2], error[3], error[4] ,error[5]))
-                saver.save(sess, FLAGS.model_dir+"model.ckpt")
+            if step > 0  and step % LOG_STEP == 0:
 
-        test_error, test_loss = sess.run([average_error, loss], feed_dict=test_feed)
+                duration = time.time() - start_time
+                print("step%d-%d: %f sec"%(step-LOG_STEP, step, duration))
+                summary, error, loss_val, m_error = sess.run([summary_op, average_error, loss, maximum_error], feed_dict=valid_feed)
+                file_writer.add_summary(summary, step)
+
+                print("step%d loss=%f average error: HD=%f TP=%f HM=%f SM=%f CO=%f SR=%f"%(step, loss_val, error[0], error[1], error[2], error[3], error[4] ,error[5]))
+                print("max error: HD=%f TP=%f HM=%f SM=%f CO=%f SR=%f"%(m_error[0], m_error[1], m_error[2], m_error[3], m_error[4] , m_error[5]))
+                
+        saver.save(sess, FLAGS.model_dir+"model.ckpt")
+        test_error, test_loss, test_m = sess.run([average_error, loss, maximum_error], feed_dict=test_feed)
         print("test loss=%f average error: HD=%f TP=%f HM=%f SM=%f CO=%f SR=%f"%(test_loss, test_error[0], test_error[1], test_error[2], test_error[3], test_error[4] ,test_error[5]))
+        print("max error: HD=%f TP=%f HM=%f SM=%f CO=%f SR=%f"%(test_m[0], test_m[1], test_m[2], test_m[3], test_m[4] , test_m[5]))
 
 if __name__ == "__main__":
     tf.app.run()

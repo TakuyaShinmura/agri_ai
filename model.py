@@ -67,6 +67,33 @@ def loss(outputs, corrects):
 def train_step(loss, learning_rate):
     return tf.train.RMSPropOptimizer(learning_rate).minimize(loss)
 
+
+def maximum_error(outputs, corrects, stddev, mean):
+
+    maximum_error = None
+    counter = 0
+    for output, correct in zip(outputs, corrects):
+        true_out = output * stddev + mean
+        true_correct = correct * stddev + mean
+        abs_error = tf.abs(true_correct - true_out)
+        max_error = tf.reduce_max(abs_error, axis=0)
+        if counter == 0:
+            maximum_error = max_error
+        else:
+            maximum_error = tf.maximum(max_error, maximum_error)
+
+        counter +=1
+
+    tf.summary.scalar("MAX HD Error", maximum_error[0])
+    tf.summary.scalar("MAX TP Error", maximum_error[1])
+    tf.summary.scalar("MAX HM Error", maximum_error[2])
+    tf.summary.scalar("MAX SM Error", maximum_error[3])
+    tf.summary.scalar("MAX CO Error", maximum_error[4])
+    tf.summary.scalar("MAX SR Error", maximum_error[5])
+
+    return maximum_error
+
+
 def average_error(outputs, corrects, stddev, mean):
 
     error = []
@@ -74,11 +101,9 @@ def average_error(outputs, corrects, stddev, mean):
     for output, correct in zip(outputs, corrects):
         true_out = output * stddev + mean
         true_correct = correct * stddev + mean
-
-        accuracy = tf.abs(true_correct - true_out)
-        accuracy = tf.reduce_mean(accuracy, axis=0)
-
-        error.append(accuracy)
+        abs_error = tf.abs(true_correct - true_out)
+        mean_error = tf.reduce_mean(abs_error, axis=0)
+        error.append(mean_error)
         counter +=1
 
     each_error = tf.add_n(error)/counter
