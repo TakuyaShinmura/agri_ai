@@ -29,8 +29,8 @@ class DataSets(object):
         train_index = []
         validation_index = []
 
-        train_data, train_indexes, validation_indexes = self._read_file(train_path)
-        test_data, test_indexes, _ = self._read_file(test_path, False)
+        train_data, train_indexes, validation_indexes, _ = self._read_file(train_path)
+        test_data, test_indexes, _ , test_keys= self._read_file(test_path, False)
 
 
         self.train_data = np.array(train_data)
@@ -38,6 +38,7 @@ class DataSets(object):
         self.train_indexes = train_indexes
         self.validation_indexes = validation_indexes
         self.test_indexes = test_indexes
+        self.test_keys = test_keys
         print("train:%d,validation:%d,test:%d"%(len(self.train_indexes,),len(self.validation_indexes),len(self.test_indexes)))
 
         self.average = np.mean(self.train_data, axis=0, keepdims=True)
@@ -56,6 +57,7 @@ class DataSets(object):
         all_data =[]
         input_indexes=[]
         v_input_indexes=[]
+        keys=[]
 
         num_line = 0
 
@@ -63,6 +65,7 @@ class DataSets(object):
             reader = csv.reader(f)
             header = next(reader)
             for row in reader:
+                key = row[1]+":"+row[2]+":"+row[3]
                 float_row = row[5:]
                 float_row = [float(elem) for elem in float_row]
                 all_data.append(float_row)
@@ -72,9 +75,10 @@ class DataSets(object):
                         v_input_indexes.append(num_line)
                     else:
                         input_indexes.append(num_line)
+                        keys.append(key)
                 num_line += 1
 
-        return all_data, input_indexes, v_input_indexes
+        return all_data, input_indexes, v_input_indexes, keys
 
 
     def _create_batch(self, indexes, test=False, batch_size=None):
